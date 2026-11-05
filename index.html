@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>판례 및 준비서면 검색 시스템</title>
+<style>
+  :root {
+    --primary: #1a3a5c;
+    --primary-light: #2456894d;
+    --accent: #c8a84b;
+    --accent-light: #f5e9c8;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #d0d7e2;
+    --text: #1e2a3a;
+    --text-sub: #5a6a7e;
+    --red: #c0392b;
+    --green: #27ae60;
+    --sidebar-w: 260px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  .header {
+    background: var(--primary);
+    color: #fff;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  }
+  .header h1 { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+  .header h1 span { color: var(--accent); }
+  .header-right { font-size: 12px; color: #aac4e0; }
+
+  /* Layout */
+  .layout { display: flex; margin-top: 60px; min-height: calc(100vh - 60px); }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    position: fixed; top: 60px; bottom: 0; left: 0;
+    overflow-y: auto;
+  }
+  .sidebar-section { margin-bottom: 8px; }
+  .sidebar-title {
+    font-size: 11px; font-weight: 700; color: var(--text-sub);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 8px 16px 4px;
+  }
+  .cat-group { margin-bottom: 4px; }
+  .cat-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 16px;
+    cursor: pointer;
+    font-size: 13px; font-weight: 700; color: var(--primary);
+    background: none; border: none; width: 100%; text-align: left;
+    transition: background .15s;
+  }
+  .cat-header:hover { background: var(--bg); }
+  .cat-header.active { background: var(--primary-light); }
+  .cat-header .icon { font-size: 15px; }
+  .cat-header .arrow { margin-left: auto; transition: transform .2s; font-size: 10px; color: var(--text-sub); }
+  .cat-header.open .arrow { transform: rotate(90deg); }
+  .cat-children { display: none; }
+  .cat-children.open { display: block; }
+  .sub-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 16px 7px 36px;
+    cursor: pointer;
+    font-size: 12px; color: var(--text-sub);
+    background: none; border: none; width: 100%; text-align: left;
+    transition: background .15s, color .15s;
+  }
+  .sub-item:hover { background: var(--bg); color: var(--primary); }
+  .sub-item.active { background: var(--accent-light); color: var(--primary); font-weight: 600; }
+  .sub-item .count {
+    margin-left: auto;
+    background: var(--primary); color: #fff;
+    font-size: 10px; padding: 1px 6px; border-radius: 10px;
+    min-width: 20px; text-align: center;
+  }
+  .sub-item.active .count { background: var(--accent); }
+
+  /* Main */
+  .main { margin-left: var(--sidebar-w); flex: 1; padding: 24px; }
+
+  /* File zone */
+  .file-zone {
+    background: var(--card);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    transition: border-color .2s, background .2s;
+  }
+  .file-zone.drag-over { border-color: var(--accent); background: var(--accent-light); }
+  .file-zone-icon { font-size: 40px; margin-bottom: 8px; }
+  .file-zone h3 { font-size: 15px; color: var(--primary); margin-bottom: 6px; }
+  .file-zone p { font-size: 12px; color: var(--text-sub); margin-bottom: 14px; }
+  .btn-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    padding: 9px 20px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: all .15s;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: #24527a; }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-accent:hover { background: #b8963e; }
+  .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
+  .btn-outline:hover { background: var(--bg); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { background: #a93226; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Search bar */
+  .search-bar {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  }
+  .search-row { display: flex; gap: 10px; align-items: center; }
+  .search-input-wrap { flex: 1; position: relative; }
+  .search-input-wrap .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text-sub); font-size: 16px; pointer-events: none;
+  }
+  .search-input {
+    width: 100%; padding: 10px 12px 10px 38px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: inherit;
+    transition: border-color .2s;
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--primary); }
+  .search-options { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .search-options label { font-size: 12px; color: var(--text-sub); display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  .search-options input[type=checkbox] { accent-color: var(--primary); }
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; margin: 2px; cursor: pointer; border: 1.5px solid var(--border); color: var(--text-sub); transition: all .15s; }
+  .tag:hover { border-color: var(--primary); color: var(--primary); }
+  .tag.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  /* Status */
+  .status-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: var(--card);
+    border-radius: 8px; margin-bottom: 16px;
+    font-size: 12px; color: var(--text-sub);
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .status-bar .stat { display: flex; align-items: center; gap: 5px; }
+  .status-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .status-bar .dot.loading { background: var(--accent); animation: pulse .8s infinite; }
+  .status-bar .dot.empty { background: var(--border); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width .3s; }
+
+  /* Results */
+  .results-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .results-header h2 { font-size: 14px; font-weight: 700; color: var(--text); }
+  .sort-select {
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 12px; font-family: inherit; background: var(--card);
+    outline: none; cursor: pointer;
+  }
+
+  /* Result card */
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    transition: box-shadow .2s, border-color .2s;
+    cursor: pointer;
+  }
+  .result-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); border-color: var(--primary); }
+  .result-card.expanded { border-color: var(--primary); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+  .card-top { display: flex; align-items: flex-start; gap: 12px; }
+  .card-icon { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+  .card-info { flex: 1; min-width: 0; }
+  .card-title { font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-civil { background: #e8f4fd; color: #1a73e8; }
+  .badge-admin { background: #fef3e2; color: #e67e22; }
+  .badge-sub { background: var(--accent-light); color: #8a6914; }
+  .badge-brief { background: #f0f7f0; color: #27ae60; }
+  .badge-judgment { background: #f5f0ff; color: #7e57c2; }
+  .card-snippet { font-size: 12px; color: var(--text-sub); line-height: 1.6; }
+  .card-snippet mark { background: #fff3b0; color: var(--text); padding: 0 2px; border-radius: 2px; font-style: normal; }
+  .card-footer { display: flex; gap: 8px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .match-count { font-size: 11px; color: var(--text-sub); margin-left: auto; align-self: center; }
+
+  /* Expanded preview */
+  .card-preview { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .result-card.expanded .card-preview { display: block; }
+  .preview-text {
+    font-size: 12px; color: var(--text); line-height: 1.8;
+    max-height: 300px; overflow-y: auto;
+    background: var(--bg); border-radius: 6px; padding: 12px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .preview-text mark { background: #fff3b0; padding: 0 2px; border-radius: 2px; }
+
+  /* Empty / loading */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-sub); }
+  .empty-state .icon { font-size: 56px; margin-bottom: 12px; }
+  .empty-state h3 { font-size: 16px; color: var(--text); margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; line-height: 1.6; }
+
+  .loading-state { text-align: center; padding: 40px 20px; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--primary); color: #fff;
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 13px; z-index: 999;
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+    transform: translateY(80px); opacity: 0;
+    transition: all .3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { background: var(--red); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 12px; padding: 28px; max-width: 520px; width: 90%; }
+  .modal h3 { font-size: 16px; color: var(--primary); margin-bottom: 12px; }
+  .modal p, .modal li { font-size: 13px; color: var(--text); line-height: 1.8; }
+  .modal ol { padding-left: 20px; margin: 10px 0; }
+  .modal code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+  .modal .btn { margin-top: 16px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #b0b8c8; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <h1>⚖️ 판례 &amp; 준비서면 <span>검색 시스템</span></h1>
+  <div class="header-right" id="headerStatus">
+    <span id="pdfStatus" style="margin-right:12px; padding:3px 10px; border-radius:12px; font-size:11px; background:rgba(255,255,255,.15);">⏳ PDF.js 로딩 중...</span>
+    파일을 불러오면 검색이 시작됩니다
+  </div>
+</header>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">카테고리 필터</div>
+
+      <!-- 전체 -->
+      <button class="sub-item active" data-cat="all" style="padding-left:16px; font-weight:700; color:var(--primary);">
+        📋 전체 문서 <span class="count" id="cnt-all">0</span>
+      </button>
+
+      <!-- 민사소송 -->
+      <div class="cat-group">
+        <button class="cat-header open" onclick="toggleCat(this)">
+          <span class="icon">⚖️</span> 민사소송
+          <span class="arrow">▶</span>
+        </button>
+        <div class="cat-children open">
+          <button class="sub-item" data-cat="구상금">
+            구상금 <span class="count" id="cnt-구상금">0</span>
+          </button>
+          <button class="sub-item" data-cat="부당이득금">
+            부당이득금 <span class="count" id="cnt-부당이득금">0</span>
+          </button>
+          <button class="sub-item" data-cat="사해행위취소">
+            사해행위취소소송 <span class="count" id="cnt-사해행위취소">0</span>
+          </button>
+          <button class="sub-item" data-cat="손해배상">
+            손해배상 <span class="count" id="cnt-손해배상">0</span>
+          </button>
+          <button class="sub-item" data-cat="민사기타">
+            기타 민사 <span class="count" id="cnt-민사기타">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 행정소송 -->
+      <div class="cat-group">
+        <button class="cat-header open" onclick="toggleCat(this)">
+          <span class="icon">🏛️</span> 행정소송
+          <span class="arrow">▶</span>
+        </button>
+        <div class="cat-children open">
+          <button class="sub-item" data-cat="보험료부과처분취소">
+            보험료부과처분취소 <span class="count" id="cnt-보험료부과처분취소">0</span>
+          </button>
+          <button class="sub-item" data-cat="보험료무효확인">
+            보험료무효확인소송 <span class="count" id="cnt-보험료무효확인">0</span>
+          </button>
+          <button class="sub-item" data-cat="요양급여환수">
+            요양급여비용환수처분취소 <span class="count" id="cnt-요양급여환수">0</span>
+          </button>
+          <button class="sub-item" data-cat="장기요양환수">
+            장기요양급여비용환수처분취소 <span class="count" id="cnt-장기요양환수">0</span>
+          </button>
+          <button class="sub-item" data-cat="행정기타">
+            기타 행정 <span class="count" id="cnt-행정기타">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 준비서면 -->
+      <div class="cat-group">
+        <button class="cat-header open" onclick="toggleCat(this)">
+          <span class="icon">📝</span> 문서 유형
+          <span class="arrow">▶</span>
+        </button>
+        <div class="cat-children open">
+          <button class="sub-item" data-cat="판례">
+            판례 (판결문) <span class="count" id="cnt-판례">0</span>
+          </button>
+          <button class="sub-item" data-cat="준비서면">
+            준비서면 <span class="count" id="cnt-준비서면">0</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- File Zone -->
+    <div class="file-zone" id="fileZone">
+      <div class="file-zone-icon">📂</div>
+      <h3>PDF / 한글(HWP, HWPX) 파일을 불러오세요</h3>
+      <p>폴더 전체 불러오기 또는 개별 파일 선택 · 드래그 앤 드롭도 지원합니다</p>
+      <div class="btn-group">
+        <label class="btn btn-primary" style="cursor:pointer;">
+          📁 폴더 전체 불러오기
+          <input type="file" id="folderInput" webkitdirectory multiple accept=".pdf,.hwp,.hwpx" style="display:none" onchange="handleFiles(this.files)">
+        </label>
+        <label class="btn btn-outline" style="cursor:pointer;">
+          📄 파일 직접 선택
+          <input type="file" id="fileInput" multiple accept=".pdf,.hwp,.hwpx" style="display:none" onchange="handleFiles(this.files)">
+        </label>
+        <button class="btn btn-accent" onclick="reanalyze()" id="btnReanalyze" style="display:none">🔄 재분석</button>
+        <button class="btn btn-danger" onclick="clearAll()">🗑️ 초기화</button>
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <div class="search-row">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="searchInput"
+            placeholder="검색어를 입력하세요 (예: 자동차사고, 구상금, 보험료 등)"
+            oninput="onSearchInput()" onkeydown="if(event.key==='Enter') doSearch()">
+        </div>
+        <button class="btn btn-primary" onclick="doSearch()">검색</button>
+      </div>
+      <div class="search-options">
+        <label><input type="checkbox" id="optCase" checked> 대소문자 구분</label>
+        <label><input type="checkbox" id="optWhole"> 단어 단위</label>
+        <label><input type="checkbox" id="optSnippet" checked> 내용 미리보기</label>
+        <span style="margin-left:8px; font-size:12px; color:var(--text-sub);">빠른 검색:</span>
+        <span class="tag" onclick="quickSearch('자동차사고')">자동차사고</span>
+        <span class="tag" onclick="quickSearch('구상금')">구상금</span>
+        <span class="tag" onclick="quickSearch('부당이득')">부당이득</span>
+        <span class="tag" onclick="quickSearch('사해행위')">사해행위</span>
+        <span class="tag" onclick="quickSearch('보험료')">보험료</span>
+        <span class="tag" onclick="quickSearch('요양급여')">요양급여</span>
+        <span class="tag" onclick="quickSearch('장기요양')">장기요양</span>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar">
+      <div class="stat"><div class="dot empty" id="statusDot"></div><span id="statusText">파일 없음</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <span id="statusRight">총 0개 파일</span>
+    </div>
+
+    <!-- Results -->
+    <div class="results-header">
+      <h2 id="resultsTitle">검색 결과</h2>
+      <select class="sort-select" id="sortSelect" onchange="renderResults()">
+        <option value="match">관련도순</option>
+        <option value="name">파일명순</option>
+        <option value="type">유형순</option>
+      </select>
+    </div>
+    <div id="resultsArea">
+      <div class="empty-state">
+        <div class="icon">📚</div>
+        <h3>파일을 불러온 후 검색해 보세요</h3>
+        <p>PDF 또는 HWP 파일을 선택하면<br>파일 내용을 분석하여 판례와 준비서면을 찾아드립니다.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Offline Setup Modal -->
+<div class="modal-overlay" id="pdfModal">
+  <div class="modal">
+    <h3>⚠️ PDF.js 라이브러리 설치 필요</h3>
+    <p>오프라인에서 PDF 파일을 읽으려면 PDF.js 파일이 필요합니다.</p>
+    <ol>
+      <li>아래 링크에서 <b>PDF.js</b>를 다운로드합니다:<br>
+        <code>https://mozilla.github.io/pdf.js/getting_started/</code>
+      </li>
+      <li>다운로드한 파일 중 <code>pdf.min.js</code>와 <code>pdf.worker.min.js</code>를<br>
+        이 HTML 파일과 <b>같은 폴더</b>에 복사합니다.</li>
+      <li>페이지를 새로고침합니다.</li>
+    </ol>
+    <p style="margin-top:10px; color:#888; font-size:12px;">
+      ※ 인터넷 연결이 가능한 경우 CDN에서 자동으로 불러옵니다.
+    </p>
+    <button class="btn btn-primary" onclick="document.getElementById('pdfModal').classList.remove('show')">확인</button>
+  </div>
+</div>
+
+<!-- PDF.js 로드 (로컬 우선 → CDN 폴백) -->
+<script>
+(function(){
+  var s = document.createElement('script');
+  // 로컬 파일 우선
+  s.src = './pdf.min.js';
+  s.onerror = function(){
+    // 로컬 없으면 CDN
+    var s2 = document.createElement('script');
+    s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s2.onload = function(){
+      if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    };
+    s2.onerror = function(){ window._pdfFailed = true; };
+    document.head.appendChild(s2);
+  };
+  s.onload = function(){
+    if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
+  };
+  document.head.appendChild(s);
+})();
+</script>
+
+<!-- JSZip (HWPX 지원) -->
+<script>
+(function(){
+  var s = document.createElement('script');
+  s.src = './jszip.min.js';
+  s.onerror = function(){
+    var s2 = document.createElement('script');
+    s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+})();
+</script>
+
+<script>
+// ─── 카테고리 정의 ───────────────────────────────────────
+const CATEGORIES = {
+  '구상금':          { type: '민사소송', keywords: ['구상금','구상권','구상청구','구상의무','구상액'] },
+  '부당이득금':      { type: '민사소송', keywords: ['부당이득금','부당이득','부당이득반환','법률상 원인 없이','부당이득액'] },
+  '사해행위취소':    { type: '민사소송', keywords: ['사해행위','사해행위취소','채권자취소권','사해행위취소소송','사해의사','수익자'] },
+  '손해배상':        { type: '민사소송', keywords: ['손해배상','손해배상청구','위자료','일실수입','치료비','손해액','배상액'] },
+  '민사기타':        { type: '민사소송', keywords: ['민사소송','소유권','채권','이행청구','지급청구'] },
+  '보험료부과처분취소': { type: '행정소송', keywords: ['보험료부과처분','보험료 부과','건강보험료','보험료부과','부과처분취소','건강보험공단'] },
+  '보험료무효확인':  { type: '행정소송', keywords: ['보험료무효','보험료 무효','무효확인','보험료 무효확인'] },
+  '요양급여환수':    { type: '행정소송', keywords: ['요양급여비용','요양급여 환수','환수처분','요양급여비용환수','요양급여비용 청구','요양급여비용 환수'] },
+  '장기요양환수':    { type: '행정소송', keywords: ['장기요양','장기요양급여','장기요양비용','장기요양기관','장기요양급여비용','장기요양급여비용 환수'] },
+  '행정기타':        { type: '행정소송', keywords: ['행정소송','처분취소','취소소송','행정청','처분성','재량권'] },
+};
+
+const DOC_TYPE_KEYWORDS = {
+  '판례':     ['판결','선고','법원','원고','피고','주문','이유','청구취지','청구원인','가집행'],
+  '준비서면': ['준비서면','원고 제출','피고 제출','작성일','제출일','귀중','이 사건','원고의 주장','피고의 주장'],
+};
+
+// ─── 상태 ────────────────────────────────────────────────
+let allDocs = [];       // { name, ext, text, category, docType, size }
+let filteredDocs = [];  // 현재 카테고리 필터 적용 결과
+let searchResults = []; // 검색 결과
+let currentCat = 'all';
+let isLoading = false;
+let loadedCount = 0;
+let totalCount = 0;
+
+// ─── 파일 처리 ───────────────────────────────────────────
+async function handleFiles(fileList) {
+  const files = Array.from(fileList).filter(f =>
+    /\.(pdf|hwp|hwpx)$/i.test(f.name)
+  );
+  if (!files.length) { showToast('지원 형식의 파일이 없습니다 (PDF, HWP, HWPX)', 'error'); return; }
+
+  // PDF.js 로딩 완료까지 대기
+  const hasPdf = files.some(f => /\.pdf$/i.test(f.name));
+  if (hasPdf && !window.pdfjsLib) {
+    setStatus('loading', 'PDF.js 로딩 대기 중...', 0);
+    try {
+      await waitForPdfJs(15000);
+      updatePdfStatus();
+    } catch(e) {
+      showToast('⚠️ PDF.js 로드 실패 — PDF 내용 추출이 안 됩니다.\n오프라인 파일(pdf.min.js)을 같은 폴더에 넣어주세요.', 'error');
+    }
+  }
+
+  isLoading = true;
+  totalCount = files.length;
+  loadedCount = 0;
+  setStatus('loading', `파일 분석 중... (0/${totalCount})`, 0);
+
+  for (const f of files) {
+    await processFile(f);
+    loadedCount++;
+    const pct = Math.round(loadedCount / totalCount * 100);
+    setStatus('loading', `파일 분석 중... (${loadedCount}/${totalCount})`, pct);
+  }
+
+  isLoading = false;
+  updateCounts();
+  setStatus('done', `분석 완료: ${allDocs.length}개 문서`, 100);
+  document.getElementById('headerStatus').textContent = `총 ${allDocs.length}개 문서 로드됨`;
+
+  // 텍스트 추출 실패 파일 확인
+  const failed = allDocs.filter(d => !d.text || d.text.startsWith('['));
+  if (failed.length > 0) {
+    document.getElementById('btnReanalyze').style.display = '';
+    showToast(`⚠️ ${failed.length}개 파일 내용 추출 실패 — PDF.js 로드 후 [재분석] 클릭`, 'error');
+  } else {
+    document.getElementById('btnReanalyze').style.display = 'none';
+    showToast(`✅ ${allDocs.length}개 파일 분석 완료`);
+  }
+
+  // 검색어가 있으면 자동 검색
+  const q = document.getElementById('searchInput').value.trim();
+  if (q) doSearch();
+  else renderFiltered();
+}
+
+async function processFile(file) {
+  let text = '';
+  const ext = file.name.split('.').pop().toLowerCase();
+  try {
+    if (ext === 'pdf') {
+      text = await extractPdfText(file);
+    } else if (ext === 'hwpx') {
+      text = await extractHwpxText(file);
+    } else if (ext === 'hwp') {
+      text = await extractHwpText(file);
+    }
+  } catch(e) {
+    text = '';
+    console.warn('파일 읽기 실패:', file.name, e);
+  }
+
+  const category = detectCategory(text, file.name);
+  const docType  = detectDocType(text, file.name);
+
+  allDocs.push({
+    name: file.name,
+    ext,
+    text,
+    category,
+    docType,
+    size: file.size,
+    file,
+  });
+}
+
+// ─── PDF 텍스트 추출 ─────────────────────────────────────
+async function extractPdfText(file) {
+  if (!window.pdfjsLib) {
+    if (window._pdfFailed) return '[PDF.js 미설치 - 텍스트 추출 불가]';
+    await new Promise(r => setTimeout(r, 1500));
+    if (!window.pdfjsLib) return '[PDF.js 로딩 중 - 나중에 재시도]';
+  }
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+  let full = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const tc = await page.getTextContent();
+    full += tc.items.map(it => it.str).join(' ') + '\n';
+  }
+  return full;
+}
+
+// ─── HWPX 텍스트 추출 (ZIP → XML) ───────────────────────
+async function extractHwpxText(file) {
+  if (!window.JSZip) return '[JSZip 미설치 - HWPX 추출 불가]';
+  const ab = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(ab);
+  let text = '';
+  // HWPX 내부 XML 파일 탐색
+  const xmlPaths = Object.keys(zip.files).filter(p =>
+    /\.(xml|hml)$/i.test(p) && !/thumbnail/i.test(p)
+  );
+  for (const p of xmlPaths) {
+    const raw = await zip.files[p].async('string');
+    // XML 태그 제거하여 텍스트만 추출
+    text += raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ') + ' ';
+  }
+  return text.trim() || '[HWPX 내용 추출 실패]';
+}
+
+// ─── HWP 텍스트 추출 (바이너리 - 제한적) ──────────────────
+async function extractHwpText(file) {
+  // HWP 5.x 바이너리 포맷 - 간단한 텍스트 스캔
+  const ab = await file.arrayBuffer();
+  const buf = new Uint8Array(ab);
+  let text = '';
+  // UTF-16LE 텍스트 영역 스캔
+  for (let i = 0; i < buf.length - 1; i += 2) {
+    const code = buf[i] | (buf[i+1] << 8);
+    if ((code >= 0xAC00 && code <= 0xD7A3) || // 한글
+        (code >= 0x20 && code <= 0x7E)) {       // ASCII
+      text += String.fromCharCode(code);
+    } else if (code === 0x000D || code === 0x000A) {
+      text += '\n';
+    }
+  }
+  return text.replace(/\s+/g, ' ').trim() || '[HWP 내용 추출 제한적]';
+}
+
+// ─── 카테고리 자동 분류 ──────────────────────────────────
+function detectCategory(text, filename) {
+  const hay = (text + ' ' + filename).toLowerCase();
+  let best = null, bestScore = 0;
+  for (const [cat, info] of Object.entries(CATEGORIES)) {
+    let score = 0;
+    for (const kw of info.keywords) {
+      const re = new RegExp(kw, 'gi');
+      const m = hay.match(re);
+      if (m) score += m.length;
+    }
+    if (score > bestScore) { bestScore = score; best = cat; }
+  }
+  // 점수 없으면 민사기타 기본
+  return best && bestScore > 0 ? best : '민사기타';
+}
+
+function detectDocType(text, filename) {
+  const hay = (text + ' ' + filename).toLowerCase();
+  let best = '기타', bestScore = 0;
+  for (const [dt, kws] of Object.entries(DOC_TYPE_KEYWORDS)) {
+    let score = 0;
+    for (const kw of kws) {
+      if (hay.includes(kw)) score++;
+    }
+    if (score > bestScore) { bestScore = score; best = dt; }
+  }
+  return best;
+}
+
+// ─── 카운트 업데이트 ─────────────────────────────────────
+function updateCounts() {
+  const counts = { all: allDocs.length };
+  for (const cat of Object.keys(CATEGORIES)) counts[cat] = 0;
+  counts['판례'] = 0; counts['준비서면'] = 0;
+
+  for (const doc of allDocs) {
+    if (counts[doc.category] !== undefined) counts[doc.category]++;
+    if (counts[doc.docType] !== undefined) counts[doc.docType]++;
+    else counts[doc.docType] = 1;
+  }
+  for (const [k, v] of Object.entries(counts)) {
+    const el = document.getElementById('cnt-' + k);
+    if (el) el.textContent = v;
+  }
+}
+
+// ─── 카테고리 필터 ───────────────────────────────────────
+document.querySelectorAll('[data-cat]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('[data-cat]').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentCat = this.dataset.cat;
+    const q = document.getElementById('searchInput').value.trim();
+    if (q) doSearch();
+    else renderFiltered();
+  });
+});
+
+function getFiltered() {
+  if (currentCat === 'all') return allDocs;
+  if (currentCat === '판례' || currentCat === '준비서면')
+    return allDocs.filter(d => d.docType === currentCat);
+  return allDocs.filter(d => d.category === currentCat);
+}
+
+function renderFiltered() {
+  const docs = getFiltered();
+  document.getElementById('resultsTitle').textContent = `전체 문서 (${docs.length}건)`;
+  if (!docs.length) {
+    document.getElementById('resultsArea').innerHTML = `
+      <div class="empty-state"><div class="icon">🔍</div>
+      <h3>해당 카테고리에 문서가 없습니다</h3>
+      <p>다른 카테고리를 선택하거나 파일을 추가해 보세요.</p></div>`;
+    return;
+  }
+  renderCards(docs.map(d => ({ doc: d, matches: 0, snippets: [] })));
+}
+
+// ─── 검색 ────────────────────────────────────────────────
+let searchTimer = null;
+function onSearchInput() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => doSearch(), 300);
+}
+
+function quickSearch(kw) {
+  document.getElementById('searchInput').value = kw;
+  // 태그 활성화
+  document.querySelectorAll('.tag').forEach(t =>
+    t.classList.toggle('active', t.textContent === kw));
+  doSearch();
+}
+
+function doSearch() {
+  const raw = document.getElementById('searchInput').value.trim();
+  if (!raw) { renderFiltered(); return; }
+
+  const optCase = document.getElementById('optCase').checked;
+  const optWhole = document.getElementById('optWhole').checked;
+
+  let pattern = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (optWhole) pattern = `\\b${pattern}\\b`;
+  const flags = optCase ? 'g' : 'gi';
+  const re = new RegExp(pattern, flags);
+
+  const pool = getFiltered();
+  const results = [];
+
+  for (const doc of pool) {
+    const text = doc.text;
+    if (!text) continue;
+    const matches = text.match(re);
+    if (!matches) continue;
+
+    const snippets = extractSnippets(text, re, 3);
+    results.push({ doc, matches: matches.length, snippets });
+  }
+
+  // 정렬
+  const sort = document.getElementById('sortSelect').value;
+  if (sort === 'match') results.sort((a,b) => b.matches - a.matches);
+  else if (sort === 'name') results.sort((a,b) => a.doc.name.localeCompare(b.doc.name));
+  else if (sort === 'type') results.sort((a,b) => a.doc.docType.localeCompare(b.doc.docType));
+
+  searchResults = results;
+  document.getElementById('resultsTitle').textContent =
+    `"${raw}" 검색 결과 (${results.length}건)`;
+  renderCards(results, raw);
+}
+
+function extractSnippets(text, re, maxSnippets) {
+  const WINDOW = 120;
+  const snippets = [];
+  let m;
+  re.lastIndex = 0;
+  while ((m = re.exec(text)) !== null && snippets.length < maxSnippets) {
+    const start = Math.max(0, m.index - WINDOW);
+    const end   = Math.min(text.length, m.index + m[0].length + WINDOW);
+    let snip = (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+    snippets.push(snip);
+    re.lastIndex = m.index + 1;
+  }
+  return snippets;
+}
+
+// ─── 결과 렌더링 ─────────────────────────────────────────
+function renderResults() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (q) doSearch();
+  else renderFiltered();
+}
+
+function renderCards(results, query) {
+  if (!results.length) {
+    const q = query || '';
+    document.getElementById('resultsArea').innerHTML = `
+      <div class="empty-state"><div class="icon">📭</div>
+      <h3>${q ? `"${q}"에 해당하는 문서가 없습니다` : '검색 결과가 없습니다'}</h3>
+      <p>다른 키워드로 검색하거나 카테고리를 변경해 보세요.</p></div>`;
+    return;
+  }
+
+  const html = results.map((r, idx) => buildCard(r, idx, query)).join('');
+  document.getElementById('resultsArea').innerHTML = html;
+}
+
+function buildCard(r, idx, query) {
+  const { doc, matches, snippets } = r;
+  const re = query ? new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null;
+
+  const highlight = txt => re ? txt.replace(re, m => `<mark>${m}</mark>`) : txt;
+  const snippetHtml = snippets.map(s => `<p>${highlight(escHtml(s))}</p>`).join('');
+
+  const catInfo = CATEGORIES[doc.category];
+  const typeClass = catInfo?.type === '민사소송' ? 'badge-civil' : 'badge-admin';
+  const docBadge  = doc.docType === '판례' ? 'badge-judgment' : doc.docType === '준비서면' ? 'badge-brief' : '';
+  const fileIcon  = doc.ext === 'pdf' ? '📄' : doc.ext === 'hwpx' ? '📋' : '📝';
+  const sizeStr   = doc.size > 1048576 ? (doc.size/1048576).toFixed(1)+'MB' : Math.round(doc.size/1024)+'KB';
+
+  const previewHtml = snippets.length
+    ? `<div class="preview-text">${snippetHtml}</div>`
+    : (doc.text
+        ? `<div class="preview-text">${highlight(escHtml(doc.text.slice(0,600)))}…</div>`
+        : '<div class="preview-text" style="color:#aaa">내용을 추출할 수 없습니다.</div>');
+
+  return `
+  <div class="result-card" id="card-${idx}" onclick="toggleCard(${idx})">
+    <div class="card-top">
+      <div class="card-icon">${fileIcon}</div>
+      <div class="card-info">
+        <div class="card-title">${highlight(escHtml(doc.name))}</div>
+        <div class="card-meta">
+          <span class="badge ${typeClass}">${catInfo?.type || '기타'}</span>
+          <span class="badge badge-sub">${doc.category}</span>
+          ${doc.docType !== '기타' ? `<span class="badge ${docBadge}">${doc.docType}</span>` : ''}
+          <span style="font-size:11px;color:var(--text-sub)">${sizeStr}</span>
+        </div>
+        ${document.getElementById('optSnippet').checked && snippetHtml
+          ? `<div class="card-snippet">${snippetHtml}</div>` : ''}
+      </div>
+      ${matches ? `<span class="match-count">🎯 ${matches}회 일치</span>` : ''}
+    </div>
+    <div class="card-preview">${previewHtml}</div>
+    <div class="card-footer">
+      <button class="btn btn-outline" style="padding:5px 12px;font-size:12px"
+        onclick="event.stopPropagation(); openFile(${idx})">📂 파일 열기</button>
+      <button class="btn btn-outline" style="padding:5px 12px;font-size:12px"
+        onclick="event.stopPropagation(); copyText(${idx})">📋 텍스트 복사</button>
+    </div>
+  </div>`;
+}
+
+function toggleCard(idx) {
+  document.getElementById('card-' + idx)?.classList.toggle('expanded');
+}
+
+function openFile(idx) {
+  const r = searchResults[idx] || { doc: allDocs[idx] };
+  const doc = r.doc || r;
+  if (doc && doc.file) {
+    const url = URL.createObjectURL(doc.file);
+    window.open(url, '_blank');
+  }
+}
+
+function copyText(idx) {
+  const r = searchResults[idx] || { doc: allDocs[idx] };
+  const doc = r.doc || r;
+  if (doc && doc.text) {
+    navigator.clipboard.writeText(doc.text).then(() => showToast('텍스트가 클립보드에 복사되었습니다'));
+  }
+}
+
+// ─── 재분석 (PDF.js 로드 후 실패 파일 재처리) ───────────
+async function reanalyze() {
+  const failedIdx = allDocs
+    .map((d, i) => (!d.text || d.text.startsWith('[')) ? i : -1)
+    .filter(i => i >= 0);
+  if (!failedIdx.length) { showToast('재분석할 파일이 없습니다'); return; }
+
+  if (!window.pdfjsLib) {
+    try {
+      setStatus('loading', 'PDF.js 대기 중...', 0);
+      await waitForPdfJs(15000);
+      updatePdfStatus();
+    } catch(e) {
+      showToast('PDF.js 로드 실패 — pdf.min.js 파일을 같은 폴더에 넣어주세요', 'error');
+      return;
+    }
+  }
+
+  let done = 0;
+  for (const idx of failedIdx) {
+    const doc = allDocs[idx];
+    try {
+      if (doc.ext === 'pdf') doc.text = await extractPdfText(doc.file);
+      else if (doc.ext === 'hwpx') doc.text = await extractHwpxText(doc.file);
+      else if (doc.ext === 'hwp') doc.text = await extractHwpText(doc.file);
+      doc.category = detectCategory(doc.text, doc.name);
+      doc.docType  = detectDocType(doc.text, doc.name);
+    } catch(e) { /* 계속 진행 */ }
+    done++;
+    setStatus('loading', `재분석 중... (${done}/${failedIdx.length})`,
+      Math.round(done / failedIdx.length * 100));
+  }
+
+  updateCounts();
+  const stillFailed = allDocs.filter(d => !d.text || d.text.startsWith('['));
+  if (stillFailed.length === 0) {
+    document.getElementById('btnReanalyze').style.display = 'none';
+    showToast(`✅ 재분석 완료 — ${allDocs.length}개 문서 검색 가능`);
+  } else {
+    showToast(`⚠️ ${stillFailed.length}개 파일은 여전히 추출 실패`, 'error');
+  }
+  setStatus('done', `분석 완료: ${allDocs.length}개 문서`, 100);
+
+  const q = document.getElementById('searchInput').value.trim();
+  if (q) doSearch(); else renderFiltered();
+}
+
+// ─── 초기화 ──────────────────────────────────────────────
+function clearAll() {
+  if (allDocs.length && !confirm('모든 파일을 초기화하시겠습니까?')) return;
+  allDocs = []; filteredDocs = []; searchResults = [];
+  document.getElementById('searchInput').value = '';
+  document.getElementById('folderInput').value = '';
+  document.getElementById('fileInput').value = '';
+  updateCounts();
+  setStatus('empty', '파일 없음', 0);
+  document.getElementById('headerStatus').textContent = '파일을 불러오면 검색이 시작됩니다';
+  document.getElementById('resultsTitle').textContent = '검색 결과';
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="empty-state"><div class="icon">📚</div>
+    <h3>파일을 불러온 후 검색해 보세요</h3>
+    <p>PDF 또는 HWP 파일을 선택하면 파일 내용을 분석하여 판례와 준비서면을 찾아드립니다.</p></div>`;
+  document.querySelectorAll('.tag').forEach(t => t.classList.remove('active'));
+}
+
+// ─── PDF.js 로딩 대기 ────────────────────────────────────
+function waitForPdfJs(timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    if (window.pdfjsLib) { resolve(); return; }
+    const start = Date.now();
+    const timer = setInterval(() => {
+      if (window.pdfjsLib) { clearInterval(timer); resolve(); return; }
+      if (window._pdfFailed || Date.now() - start > timeoutMs) {
+        clearInterval(timer); reject(new Error('PDF.js 로드 실패')); return;
+      }
+    }, 200);
+  });
+}
+
+// PDF.js 상태 표시 갱신
+function updatePdfStatus() {
+  const el = document.getElementById('pdfStatus');
+  if (!el) return;
+  if (window.pdfjsLib) {
+    el.textContent = '✅ PDF.js 준비됨';
+    el.style.background = 'rgba(39,174,96,.4)';
+  } else if (window._pdfFailed) {
+    el.textContent = '❌ PDF.js 없음 (오프라인 파일 필요)';
+    el.style.background = 'rgba(192,57,43,.4)';
+  } else {
+    el.textContent = '⏳ PDF.js 로딩 중...';
+    el.style.background = 'rgba(255,255,255,.15)';
+    setTimeout(updatePdfStatus, 500);
+  }
+}
+updatePdfStatus();
+
+// ─── 상태 표시 ───────────────────────────────────────────
+function setStatus(state, text, pct) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  const right = document.getElementById('statusRight');
+  const fill = document.getElementById('progressFill');
+
+  dot.className = 'dot ' + (state === 'loading' ? 'loading' : state === 'done' ? '' : 'empty');
+  txt.textContent = text;
+  fill.style.width = pct + '%';
+  right.textContent = `총 ${allDocs.length}개 파일`;
+}
+
+// ─── 드래그 앤 드롭 ──────────────────────────────────────
+const fz = document.getElementById('fileZone');
+fz.addEventListener('dragover', e => { e.preventDefault(); fz.classList.add('drag-over'); });
+fz.addEventListener('dragleave', () => fz.classList.remove('drag-over'));
+fz.addEventListener('drop', e => {
+  e.preventDefault(); fz.classList.remove('drag-over');
+  const files = e.dataTransfer.files;
+  if (files.length) handleFiles(files);
+});
+
+// ─── 유틸 ────────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type === 'error' ? 'error' : '') + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function toggleCat(btn) {
+  btn.classList.toggle('open');
+  btn.nextElementSibling.classList.toggle('open');
+}
+
+// ─── 초기화 시 상태 ──────────────────────────────────────
+setStatus('empty', '파일 없음', 0);
+</script>
+</body>
+</html>
